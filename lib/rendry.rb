@@ -2,7 +2,7 @@
 
 require "cgi"
 
-module RubyUI
+module Rendry
   class SafeHTML < String
     def html_safe?
       true

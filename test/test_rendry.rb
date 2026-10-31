@@ -1,11 +1,11 @@
 # frozen_string_literal: true
 
 require "minitest/autorun"
-require_relative "../lib/ruby_ui"
+require_relative "../lib/rendry"
 
-class RubyUITest < Minitest::Test
+class RendryTest < Minitest::Test
   def test_renders_nested_html
-    html = RubyUI.render do
+    html = Rendry.render do
       section(class: "card") do
         h1 { text "Tasks & ideas" }
         p "A small Ruby interface"
@@ -16,7 +16,7 @@ class RubyUITest < Minitest::Test
   end
 
   def test_escapes_text_and_attributes
-    html = RubyUI.render do
+    html = Rendry.render do
       p(data_test: '"quoted"') { text "<script>alert(1)</script>" }
     end
 
@@ -24,7 +24,7 @@ class RubyUITest < Minitest::Test
   end
 
   def test_renders_boolean_and_void_attributes
-    html = RubyUI.render do
+    html = Rendry.render do
       input(type: "checkbox", checked: true, disabled: false)
     end
 
@@ -32,7 +32,7 @@ class RubyUITest < Minitest::Test
   end
 
   def test_allows_controlled_raw_html
-    html = RubyUI.render do
+    html = Rendry.render do
       div { raw '<strong>trusted</strong>' }
     end
 
@@ -40,13 +40,13 @@ class RubyUITest < Minitest::Test
   end
 
   def test_renders_a_component
-    badge = Class.new(RubyUI::Component) do
+    badge = Class.new(Rendry::Component) do
       def render
-        RubyUI.render { span(class: "badge") { text "Ready" } }
+        Rendry.render { span(class: "badge") { text "Ready" } }
       end
     end.new
 
-    html = RubyUI.render { div { component badge } }
+    html = Rendry.render { div { component badge } }
 
     assert_equal '<div><span class="badge">Ready</span></div>', html
   end

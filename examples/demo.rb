@@ -1,8 +1,8 @@
 # frozen_string_literal: true
 
-require_relative "../lib/ruby_ui"
+require_relative "../lib/rendry"
 
-class TaskCard < RubyUI::Component
+class TaskCard < Rendry::Component
   def initialize(title:, description:, completed: false)
     @title = title
     @description = description
@@ -14,7 +14,7 @@ class TaskCard < RubyUI::Component
     description = @description
     status = @completed ? "Done" : "Open"
 
-    RubyUI.render do
+    Rendry.render do
       article(class: "task-card") do
         span(status, class: "status")
         h2 title
@@ -24,10 +24,10 @@ class TaskCard < RubyUI::Component
   end
 end
 
-page = RubyUI.render do
+page = Rendry.render do
   main(class: "page") do
     h1 { text "My tasks" }
-    p "A tiny interface rendered by RubyUI."
+    p "A tiny interface rendered by Rendry."
     component TaskCard.new(
       title: "Learn the builder",
       description: "Compose HTML with Ruby methods.",

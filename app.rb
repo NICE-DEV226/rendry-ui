@@ -4,7 +4,7 @@ require "sqlite3"
 require "erb"
 require_relative "lib/ui"
 
-class RubyUiApp < Sinatra::Base
+class RendryApp < Sinatra::Base
   enable :method_override
   set :root, __dir__
   set :database, Sequel.sqlite(File.join(__dir__, "db", "development.sqlite3"))

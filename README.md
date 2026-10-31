@@ -2,12 +2,12 @@
 
 Rendry UI is a lightweight server-rendered UI framework prototype for Ruby. It provides a small DSL for composing HTML with Ruby, without mandatory JavaScript or a prescribed application structure.
 
-## Usage
+## Utilisation
 
 ```ruby
-require_relative "lib/ruby_ui"
+require_relative "lib/rendry"
 
-html = RubyUI.render do
+html = Rendry.render do
   main(class: "page") do
     h1 { text "Tasks" }
     p "A simple Ruby interface"
@@ -20,20 +20,20 @@ puts html
 
 Values passed to `text` and element content are escaped automatically. Use `raw` only for an HTML fragment fully controlled by your application.
 
-## Components
+## Composants
 
 ```ruby
-class Badge < RubyUI::Component
+class Badge < Rendry::Component
   def initialize(label)
     @label = label
   end
 
   def render
-    RubyUI.render { span(@label, class: "badge") }
+    Rendry.render { span(@label, class: "badge") }
   end
 end
 
-RubyUI.render { component Badge.new("Ready") }
+Rendry.render { component Badge.new("Ready") }
 ```
 
 ## Run the demo
@@ -42,7 +42,7 @@ From this directory:
 
 ```sh
 ruby examples/demo.rb
-ruby -Ilib test/test_ruby_ui.rb
+ruby -Ilib test/test_rendry.rb
 ```
 
 ## Project direction
