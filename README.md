@@ -36,12 +36,15 @@ end
 Rendry.render { component Badge.new("Ready") }
 ```
 
-## Run the demo
+## Run the examples
 
-From this directory:
+Each file under `examples/` is a self-contained, runnable step:
 
 ```sh
-ruby examples/demo.rb
+ruby examples/01_basics.rb        # DSL: tags, text, attributes, escaping
+ruby examples/02_components.rb    # custom components + built-in kit
+ruby examples/03_layout.rb        # full HTML document via Layout
+ruby examples/04_full_page.rb     # composed page (save output next to examples/rendry.css)
 ruby -Ilib test/test_rendry.rb
 ```
 

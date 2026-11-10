@@ -1,0 +1,94 @@
+/* Rendry UI — minimal stylesheet for the built-in components */
+
+*, *::before, *::after { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  font-size: 16px;
+  line-height: 1.5;
+  color: #1f2937;
+  background: #f9fafb;
+}
+
+main, .rendry-card, .rendry-alert {
+  max-width: 42rem;
+  margin-inline: auto;
+}
+
+main { padding: 2rem 1rem; }
+
+h1 { font-size: 1.75rem; margin: 0 0 1rem; }
+h3 { font-size: 1.1rem; margin: 0 0 .75rem; }
+
+/* Buttons */
+.rendry-btn {
+  display: inline-block;
+  padding: .45rem .9rem;
+  border: 1px solid transparent;
+  border-radius: .375rem;
+  font: inherit;
+  font-weight: 500;
+  cursor: pointer;
+  text-decoration: none;
+  color: #fff;
+  background: #4b5563;
+}
+.rendry-btn-primary { background: #2563eb; }
+.rendry-btn-primary:hover { background: #1d4ed8; }
+.rendry-btn-secondary { background: #6b7280; }
+.rendry-btn-danger { background: #dc2626; }
+.rendry-btn-success { background: #16a34a; }
+
+/* Badges */
+.rendry-badge {
+  display: inline-block;
+  padding: .125rem .5rem;
+  border-radius: 999px;
+  font-size: .8rem;
+  font-weight: 500;
+  background: #e5e7eb;
+  color: #374151;
+}
+.rendry-badge-primary { background: #dbeafe; color: #1d4ed8; }
+.rendry-badge-success { background: #dcfce7; color: #15803d; }
+.rendry-badge-info { background: #e0f2fe; color: #0369a1; }
+.rendry-badge-warning { background: #fef9c3; color: #a16207; }
+.rendry-badge-danger { background: #fee2e2; color: #b91c1c; }
+
+/* Alerts */
+.rendry-alert {
+  padding: .75rem 1rem;
+  border-radius: .375rem;
+  border-left: 4px solid #6b7280;
+  background: #f3f4f6;
+  margin-bottom: 1rem;
+}
+.rendry-alert-info { border-color: #0284c7; background: #f0f9ff; }
+.rendry-alert-success { border-color: #16a34a; background: #f0fdf4; }
+.rendry-alert-warning { border-color: #ca8a04; background: #fefce8; }
+.rendry-alert-danger { border-color: #dc2626; background: #fef2f2; }
+
+/* Cards */
+.rendry-card {
+  padding: 1.25rem;
+  margin-bottom: 1rem;
+  background: #fff;
+  border: 1px solid #e5e7eb;
+  border-radius: .5rem;
+  box-shadow: 0 1px 2px rgb(0 0 0 / .05);
+}
+
+/* Demo extras */
+.task-list { list-style: none; padding: 0; margin: 0 0 1rem; }
+.task { display: flex; align-items: center; gap: .5rem; padding: .5rem 0; }
+.task-title { flex: 1; }
+form label { display: block; font-weight: 500; margin-bottom: .25rem; }
+input[type="text"] {
+  width: 100%;
+  padding: .45rem .6rem;
+  margin-bottom: .75rem;
+  border: 1px solid #d1d5db;
+  border-radius: .375rem;
+  font: inherit;
+}
