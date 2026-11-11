@@ -1,0 +1,57 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        ruby: ["3.3", "3.4"]
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Ruby
+        uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: ${{ matrix.ruby }}
+          bundler-cache: true
+
+      - name: Install dependencies
+        run: bundle install
+
+      - name: Run tests
+        run: bundle exec rake test
+
+      - name: Smoke-run examples
+        run: bundle exec rake examples
+
+  gem:
+    runs-on: ubuntu-latest
+    needs: test
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Ruby
+        uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: "3.4"
+          bundler-cache: true
+
+      - name: Build gem
+        run: gem build rendry.gemspec
+
+      - name: Smoke-test packaged gem
+        run: |
+          gem install --local ./rendry-*.gem --install-dir /tmp/rendry-gem
+          GEM_HOME=/tmp/rendry-gem GEM_PATH=/tmp/rendry-gem ruby -e '
+            require "rendry"
+            html = Rendry.render { h1 { text "ok" } }
+            abort "bad output" unless html == "<h1>ok</h1>"
+            puts "gem smoke test: #{html}"
+          '
