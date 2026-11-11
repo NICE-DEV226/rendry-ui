@@ -49,6 +49,6 @@ apropos = Rendry.render do
   end
 end
 
-File.write("index.html", index)
-File.write("apropos.html", apropos)
+File.write(File.join(__dir__, "index.html"), index)
+File.write(File.join(__dir__, "apropos.html"), apropos)
 puts "index.html et apropos.html generes."

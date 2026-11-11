@@ -113,4 +113,27 @@ class RendryTest < Minitest::Test
     assert_includes html, '<link rel="stylesheet" href="/app.css">'
     assert_includes html, '<p>content</p>'
   end
+
+  def test_hx_helper_builds_htmx_attributes
+    html = Rendry.render do
+      button("Delete", **hx(delete: "/tasks/1", target: "closest .task", swap: "outerHTML"))
+    end
+
+    assert_includes html, 'hx-delete="/tasks/1"'
+    assert_includes html, 'hx-target="closest .task"'
+    assert_includes html, 'hx-swap="outerHTML"'
+  end
+
+  def test_hx_encodes_hash_values_as_json
+    html = Rendry.render do
+      button("Save", **hx(post: "/tasks", vals: { id: 42, draft: true }))
+    end
+
+    assert_includes html, 'hx-vals="{&quot;id&quot;:42,&quot;draft&quot;:true}"'
+  end
+
+  def test_rendry_hx_works_outside_render
+    attrs = Rendry.hx(get: "/poll", trigger: "every 5s")
+    assert_equal({ :"hx-get" => "/poll", :"hx-trigger" => "every 5s" }, attrs)
+  end
 end

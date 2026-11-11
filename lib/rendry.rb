@@ -1,6 +1,8 @@
 # frozen_string_literal: true
 
 require "cgi"
+require "json"
+require_relative "rendry/version"
 
 module Rendry
   class SafeHTML < String
@@ -52,6 +54,10 @@ module Rendry
       end
       @output << output
       self
+    end
+
+    def hx(**attributes)
+      Rendry.hx(**attributes)
     end
 
     def component(component_instance, &block)
@@ -219,6 +225,13 @@ module Rendry
   end
 
   module_function
+
+  def hx(**attributes)
+    attributes.each_with_object({}) do |(key, value), result|
+      value = JSON.generate(value) if value.is_a?(Hash) || value.is_a?(Array)
+      result[:"hx-#{key.to_s.tr('_', '-')}"] = value
+    end
+  end
 
   def render(&block)
     builder = Builder.new

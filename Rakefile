@@ -1,6 +1,7 @@
 # frozen_string_literal: true
 
 require "bundler/setup"
+require "fileutils"
 require "sequel"
 require "sequel/extensions/migration"
 require "rake"
@@ -8,6 +9,7 @@ require "rake/testtask"
 
 Sequel.extension :migration
 
+FileUtils.mkdir_p(File.join(__dir__, "db"))
 DB = Sequel.sqlite(File.join(__dir__, "db", "development.sqlite3"))
 
 task :load_db do
@@ -17,10 +19,17 @@ end
 
 Rake::TestTask.new(:test) do |t|
   t.libs << "lib"
-  t.test_files = FileList["test/**/*_test.rb"]
+  t.test_files = FileList["test/**/*.rb"]
 end
 
 task default: [:test]
+
+desc "Smoke-run the static examples (servers excluded)"
+task :examples do
+  %w[01_static_page 02_component_gallery 03_layout_site].each do |dir|
+    sh "ruby", "examples/#{dir}/app.rb", out: File::NULL
+  end
+end
 
 namespace :db do
   desc "Create the database"
