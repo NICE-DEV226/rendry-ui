@@ -30,6 +30,4 @@ Gem::Specification.new do |spec|
     end
   end
   spec.require_paths = ["lib"]
-
-  spec.add_dependency "json", "~> 2.0"
 end
