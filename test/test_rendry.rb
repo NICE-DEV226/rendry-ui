@@ -136,4 +136,92 @@ class RendryTest < Minitest::Test
     attrs = Rendry.hx(get: "/poll", trigger: "every 5s")
     assert_equal({ :"hx-get" => "/poll", :"hx-trigger" => "every 5s" }, attrs)
   end
+
+  def test_fragment_is_transparent_in_normal_render
+    html = Rendry.render do
+      div do
+        fragment("main") { p "content" }
+      end
+    end
+
+    assert_equal '<div><p>content</p></div>', html
+  end
+
+  def test_selective_render_outputs_only_matching_fragments
+    html = Rendry.render(fragments: ["comments"]) do
+      h1 { text "Page title" }
+      fragment("comments") { p "only this" }
+      fragment("sidebar") { p "skip me" }
+    end
+
+    assert_equal "<p>only this</p>", html
+  end
+
+  def test_selective_render_finds_fragments_nested_in_tags_and_components
+    widget = Class.new(Rendry::Component) do
+      def render
+        Rendry.render do
+          div(class: "widget") do
+            fragment("inner") { span "deep fragment" }
+          end
+        end
+      end
+    end
+
+    html = Rendry.render(fragments: ["inner"]) do
+      section do
+        component widget.new
+      end
+    end
+
+    assert_equal "<span>deep fragment</span>", html
+  end
+
+  def test_cache_renders_block_once_per_key
+    calls = 0
+    2.times do
+      Rendry.render do
+        cache("counter") do
+          calls += 1
+          text "cached"
+        end
+      end
+    end
+
+    assert_equal 1, calls
+    Rendry.cache_store.clear
+  end
+
+  def test_component_class_refreshes_wraps_output_with_hx_attributes
+    poller = Class.new(Rendry::Component) do
+      refreshes every: "5s", url: "/poll", target: "#poller"
+
+      def render
+        Rendry.render { span "live" }
+      end
+    end
+
+    html = Rendry.render { component poller.new }
+
+    assert_includes html, '<div class="rendry-refresh" style="display:contents"'
+    assert_includes html, 'hx-get="/poll"'
+    assert_includes html, 'hx-trigger="every 5s"'
+    assert_includes html, 'hx-target="#poller"'
+    assert_includes html, 'hx-swap="outerHTML"'
+    assert_includes html, "<span>live</span>"
+  end
+
+  def test_component_refresh_kwarg_overrides_class_config
+    widget = Class.new(Rendry::Component) do
+      def render
+        Rendry.render { span "w" }
+      end
+    end
+
+    html = Rendry.render { component widget.new, refresh: { url: "/w", every: "1s" } }
+
+    assert_includes html, 'hx-get="/w"'
+    assert_includes html, 'hx-trigger="every 1s"'
+    assert_includes html, 'hx-target="this"'
+  end
 end

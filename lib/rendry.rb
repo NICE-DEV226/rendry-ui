@@ -14,11 +14,32 @@ module Rendry
   VOID_ELEMENTS = %w[area base br col embed hr img input link meta param source track wbr].freeze
   BOOLEAN_ATTRIBUTES = %i[allowfullscreen async autofocus autoplay checked controls defer disabled formnovalidate hidden inert loop multiple muted nomodule novalidate open playsinline readonly required reversed selected].freeze
 
+  class Cache
+    def initialize(limit: 128)
+      @store = {}
+      @limit = limit
+    end
+
+    def fetch(key)
+      return @store[key] if @store.key?(key)
+
+      value = yield
+      @store[key] = value
+      @store.shift while @store.size > @limit
+      value
+    end
+
+    def clear
+      @store.clear
+    end
+  end
+
   class Builder
     attr_reader :output
 
-    def initialize
+    def initialize(enabled: true)
       @output = +""
+      @enabled = enabled
     end
 
     def render
@@ -26,12 +47,12 @@ module Rendry
     end
 
     def text(value)
-      @output << CGI.escapeHTML(value.to_s)
+      write CGI.escapeHTML(value.to_s)
       self
     end
 
     def raw(value)
-      @output << value.to_s
+      write value.to_s
       self
     end
 
@@ -42,7 +63,7 @@ module Rendry
       end
 
       if block
-        children = Builder.new
+        children = Builder.new(enabled: @enabled)
         Rendry.evaluate(children, &block)
         content = SafeHTML.new(children.render)
       end
@@ -52,7 +73,38 @@ module Rendry
         output << (content.is_a?(SafeHTML) ? content : CGI.escapeHTML(content.to_s))
         output << "</#{name}>"
       end
-      @output << output
+      write output
+      self
+    end
+
+    def fragment(name, &block)
+      filter = Rendry.current_fragments
+      if filter
+        return self unless filter.include?(name.to_s)
+
+        target = Rendry.root_builder || self
+        previous = target.instance_variable_get(:@enabled)
+        target.instance_variable_set(:@enabled, true)
+        begin
+          Rendry.evaluate(target, &block)
+        ensure
+          target.instance_variable_set(:@enabled, previous)
+        end
+      else
+        Rendry.evaluate(self, &block)
+      end
+      self
+    end
+
+    def cache(*keys, **_options, &block)
+      location = block.source_location.join(":")
+      key = "#{location}:#{keys.inspect}"
+      html = Rendry.cache_store.fetch(key) do
+        child = Builder.new(enabled: @enabled)
+        Rendry.evaluate(child, &block)
+        SafeHTML.new(child.render)
+      end
+      write html
       self
     end
 
@@ -60,12 +112,19 @@ module Rendry
       Rendry.hx(**attributes)
     end
 
-    def component(component_instance, &block)
+    def component(component_instance, refresh: nil, &block)
       if block && component_instance.respond_to?(:block=) && !component_instance.instance_variable_get(:@block)
         component_instance.block = block
       end
       rendered = component_instance.render
-      @output << (rendered.is_a?(SafeHTML) ? rendered : SafeHTML.new(CGI.escapeHTML(rendered.to_s)))
+      html = rendered.is_a?(SafeHTML) ? rendered : SafeHTML.new(CGI.escapeHTML(rendered.to_s))
+      config = refresh || (component_instance.class.refresh_config if component_instance.class.respond_to?(:refresh_config))
+      html = refresh_wrapper(html, config) if config
+      if @enabled
+        write html
+      elsif Rendry.current_fragments
+        @output << html
+      end
       self
     end
 
@@ -87,6 +146,25 @@ module Rendry
 
     private
 
+    def write(string)
+      @output << string if @enabled
+    end
+
+    def refresh_wrapper(html, config)
+      attributes = {
+        class: "rendry-refresh",
+        style: "display:contents",
+        hx_get: config[:url],
+        hx_trigger: config[:trigger] || (config[:every] && "every #{config[:every]}") || "load",
+        hx_target: config[:target] || "this",
+        hx_swap: config[:swap] || "outerHTML"
+      }.compact
+      output = +"<div#{format_attributes(attributes)}>"
+      output << html
+      output << "</div>"
+      SafeHTML.new(output)
+    end
+
     def format_attributes(attributes)
       attributes.each_with_object(+"") do |(key, value), result|
         next if value.nil? || value == false
@@ -103,6 +181,16 @@ module Rendry
 
   class Component
     attr_writer :block
+
+    class << self
+      def refreshes(**config)
+        @refresh_config = config
+      end
+
+      def refresh_config
+        @refresh_config
+      end
+    end
 
     def render
       raise NotImplementedError, "#{self.class} must implement #render"
@@ -233,16 +321,42 @@ module Rendry
     end
   end
 
-  def render(&block)
-    builder = Builder.new
-    evaluate(builder, &block)
+  def cache_store
+    @cache_store ||= Cache.new
+  end
+
+  def current_fragments
+    @current_fragments
+  end
+
+  def root_builder
+    @root_builder
+  end
+
+  def render(fragments: nil, &block)
+    filter = fragments || @current_fragments
+    builder = Builder.new(enabled: filter.nil?)
+    if fragments
+      previous_fragments = @current_fragments
+      previous_root = @root_builder
+      @current_fragments = fragments.map(&:to_s)
+      @root_builder = builder
+      begin
+        evaluate(builder, &block)
+      ensure
+        @current_fragments = previous_fragments
+        @root_builder = previous_root
+      end
+    else
+      evaluate(builder, &block)
+    end
     SafeHTML.new(builder.render)
   end
 
   def evaluate(builder, &block)
     owner = block.binding.receiver
     owner.instance_variables.each do |ivar|
-      next if ivar == :@output
+      next if ivar == :@output || ivar == :@enabled
 
       builder.instance_variable_set(ivar, owner.instance_variable_get(ivar))
     end
