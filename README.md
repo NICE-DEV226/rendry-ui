@@ -20,7 +20,24 @@ puts html
 
 Values passed to `text` and element content are escaped automatically. Use `raw` only for an HTML fragment fully controlled by your application.
 
+A block's return value is appended as content when it is a `String`, `Numeric`, or `Symbol` — so `div { task.title }` works, and strings are escaped unless they are `SafeHTML`.
+
+Helpers from the surrounding view context (e.g. Sinatra's `session`, `params`, or your own methods) are reachable inside DSL blocks and are written as escaped text:
+
+```ruby
+get "/" do
+  Rendry.render do
+    p { flash }          # calls your `flash` helper
+    session[:count]      # calls `session`
+  end
+end
+```
+
+`data:` and `aria:` attributes accept nested hashes and are flattened (`data: { toggle: "x" }` → `data-toggle="x"`). URLs with `javascript:`/`vbscript:`/non-image `data:` schemes in `href`, `src`, `action`, `formaction`, or `xlink:href` are rewritten to `#` — disable with `Rendry.sanitize_urls = false`.
+
 ## Components
+
+The lightest form is a `template` block — no `render` method needed:
 
 ```ruby
 class Badge < Rendry::Component
@@ -28,15 +45,13 @@ class Badge < Rendry::Component
     @label = label
   end
 
-  def render
-    Rendry.render { span(@label, class: "badge") }
+  template do
+    span(@label, class: "badge")
   end
 end
-
-Rendry.render { component Badge.new("Ready") }
 ```
 
-Components keep access to their instance variables inside DSL blocks, and accept a content block via `do...end` or `{ }`.
+For full control, implement `#render` returning `Rendry.render { ... }` or a `SafeHTML`. Components also receive the view context (`view_context`) when rendered through `component`, so helpers work inside `template` blocks too.
 
 ## Features
 

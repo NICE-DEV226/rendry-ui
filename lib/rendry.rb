@@ -68,8 +68,16 @@ module Rendry
 
       if block
         children = Builder.new(enabled: @enabled)
-        Rendry.evaluate(children, &block)
-        content = SafeHTML.new(children.render)
+        result = Rendry.evaluate(children, &block)
+        output = children.render
+        if Rendry.appendable_result?(result) && !result.is_a?(SafeHTML)
+          output = output.dup if output.frozen?
+          output << CGI.escapeHTML(result.to_s)
+        elsif result.is_a?(SafeHTML)
+          output = output.dup if output.frozen?
+          output << result
+        end
+        content = SafeHTML.new(output)
       end
 
       output = +"<#{name}#{format_attributes(attributes)}>"
@@ -117,6 +125,9 @@ module Rendry
     end
 
     def component(component_instance, refresh: nil, &block)
+      if component_instance.respond_to?(:view_context=)
+        component_instance.view_context = @context
+      end
       if block && component_instance.respond_to?(:block=) && !component_instance.instance_variable_get(:@block)
         component_instance.block = block
       end
@@ -138,7 +149,22 @@ module Rendry
 
     def method_missing(name, content = nil, **attributes, &block)
       if name.to_s.match?(/\A[a-z][a-z0-9_]*\z/)
-        tag(name.to_s.tr("_", "-"), content, **attributes, &block)
+        context = @context
+        helper = context && context.respond_to?(name) ? context.method(name) : nil
+        has_arguments = !(content.nil? && attributes.empty? && !block)
+        if helper && !(helper.arity == 0 && has_arguments)
+          result = if content.nil? && attributes.empty? && !block
+            context.public_send(name)
+          elsif content.nil?
+            context.public_send(name, **attributes, &block)
+          else
+            context.public_send(name, content, **attributes, &block)
+          end
+          write_escaped_result(result)
+          self
+        else
+          tag(name.to_s.tr("_", "-"), content, **attributes, &block)
+        end
       else
         super
       end
@@ -152,6 +178,14 @@ module Rendry
 
     def write(string)
       @output << string if @enabled
+    end
+
+    def write_escaped_result(result)
+      if result.is_a?(SafeHTML)
+        write result
+      elsif Rendry.appendable_result?(result)
+        write CGI.escapeHTML(result.to_s)
+      end
     end
 
     def refresh_wrapper(html, config)
@@ -183,6 +217,10 @@ module Rendry
         end
 
         attribute = key.to_s.tr("_", "-")
+        if Rendry.sanitize_urls && URL_ATTRIBUTES.include?(attribute) &&
+           value.to_s.match?(UNSAFE_URL_SCHEME)
+          value = "#"
+        end
         if BOOLEAN_ATTRIBUTES.include?(key.to_sym)
           result << " #{attribute}"
         else
@@ -194,6 +232,7 @@ module Rendry
 
   class Component
     attr_writer :block
+    attr_accessor :view_context
 
     class << self
       def refreshes(**config)
@@ -203,10 +242,25 @@ module Rendry
       def refresh_config
         @refresh_config
       end
+
+      def template(&block)
+        @template_block = block if block
+        @template_block || (superclass.template if superclass.respond_to?(:template))
+      end
     end
 
     def render
-      raise NotImplementedError, "#{self.class} must implement #render"
+      block = self.class.template
+      raise NotImplementedError, "#{self.class} must implement #render or declare a template" unless block
+
+      builder = Builder.new
+      result = Rendry.evaluate(builder, self, context: view_context, &block)
+      if result.is_a?(SafeHTML)
+        builder.output << result
+      elsif Rendry.appendable_result?(result)
+        builder.output << CGI.escapeHTML(result.to_s)
+      end
+      SafeHTML.new(builder.render)
     end
   end
 
@@ -368,7 +422,22 @@ module Rendry
     component Alert
   end
 
+  UNSAFE_URL_SCHEME = /\A\s*(javascript|vbscript|data(?!:image\/))\s*:/i
+  URL_ATTRIBUTES = %w[href src action formaction xlink:href].freeze
+
   module_function
+
+  def sanitize_urls
+    @sanitize_urls != false
+  end
+
+  def sanitize_urls=(value)
+    @sanitize_urls = value
+  end
+
+  def appendable_result?(value)
+    value.is_a?(String) || value.is_a?(Numeric) || value.is_a?(Symbol)
+  end
 
   def hx(**attributes)
     attributes.each_with_object({}) do |(key, value), result|
@@ -409,13 +478,18 @@ module Rendry
     SafeHTML.new(builder.render)
   end
 
-  def evaluate(builder, &block)
-    owner = block.binding.receiver
+  def evaluate(builder, owner = nil, context: nil, &block)
+    owner ||= block&.binding&.receiver
+    raise ArgumentError, "Rendry.evaluate requires a block" unless block && owner
+
+    inherited = owner.instance_variable_get(:@context) if owner.is_a?(Builder)
     owner.instance_variables.each do |ivar|
-      next if ivar == :@output || ivar == :@enabled
+      next if ivar == :@output || ivar == :@enabled || ivar == :@context
 
       builder.instance_variable_set(ivar, owner.instance_variable_get(ivar))
     end
+    resolved = context || inherited || (owner unless owner.is_a?(Builder))
+    builder.instance_variable_set(:@context, resolved)
     if block.lambda? && block.arity.zero?
       builder.instance_exec(&block)
     else

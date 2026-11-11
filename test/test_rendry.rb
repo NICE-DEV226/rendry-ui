@@ -291,4 +291,76 @@ class RendryTest < Minitest::Test
     assert_equal "AAA", results["alpha"]
     assert_equal "BBB", results["beta"]
   end
+
+  def test_block_string_result_is_appended_escaped
+    html = Rendry.render do
+      div { "hello <b>" }
+    end
+
+    assert_equal "<div>hello &lt;b&gt;</div>", html
+  end
+
+  def test_block_safe_html_result_is_appended_raw
+    html = Rendry.render do
+      div { Rendry::SafeHTML.new("<b>hi</b>") }
+    end
+
+    assert_equal "<div><b>hi</b></div>", html
+  end
+
+  def test_view_context_helpers_are_reachable_inside_dsl
+    context = Class.new do
+      def initialize
+        @tasks = ["a"]
+      end
+
+      def flash
+        "saved!"
+      end
+
+      def render_page
+        Rendry.render do
+          div(class: "page") do
+            p { flash }
+          end
+        end
+      end
+    end.new
+
+    assert_equal '<div class="page"><p>saved!</p></div>', context.render_page
+  end
+
+  def test_component_template_block_renders_without_render_method
+    component_class = Class.new(Rendry::Component) do
+      def initialize(name)
+        @name = name
+      end
+
+      template do
+        span(class: "hello") { @name }
+      end
+    end
+
+    assert_equal '<span class="hello">world</span>', component_class.new("world").render
+  end
+
+  def test_unsafe_url_schemes_are_sanitized
+    html = Rendry.render do
+      a("click", href: "javascript:alert(1)")
+      img(src: "data:text/html;base64,x")
+      a("ok", href: "https://example.com")
+    end
+
+    assert_includes html, 'href="#"'
+    assert_includes html, 'src="#"'
+    assert_includes html, 'href="https://example.com"'
+  end
+
+  def test_url_sanitization_can_be_disabled
+    Rendry.sanitize_urls = false
+    html = Rendry.render { a("x", href: "javascript:alert(1)") }
+    assert_includes html, "javascript:alert(1)"
+  ensure
+    Rendry.sanitize_urls = true
+  end
 end
