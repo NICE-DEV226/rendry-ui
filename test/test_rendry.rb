@@ -330,6 +330,24 @@ class RendryTest < Minitest::Test
     assert_equal '<div class="page"><p>saved!</p></div>', context.render_page
   end
 
+  def test_view_context_helpers_return_values_in_expressions
+    context = Class.new do
+      def flash
+        "saved!"
+      end
+
+      def render_page
+        Rendry.render do
+          div do
+            p(flash) if flash
+          end
+        end
+      end
+    end.new
+
+    assert_equal "<div><p>saved!</p></div>", context.render_page
+  end
+
   def test_component_template_block_renders_without_render_method
     component_class = Class.new(Rendry::Component) do
       def initialize(name)

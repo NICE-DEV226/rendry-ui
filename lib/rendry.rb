@@ -69,15 +69,8 @@ module Rendry
       if block
         children = Builder.new(enabled: @enabled)
         result = Rendry.evaluate(children, &block)
-        output = children.render
-        if Rendry.appendable_result?(result) && !result.is_a?(SafeHTML)
-          output = output.dup if output.frozen?
-          output << CGI.escapeHTML(result.to_s)
-        elsif result.is_a?(SafeHTML)
-          output = output.dup if output.frozen?
-          output << result
-        end
-        content = SafeHTML.new(output)
+        children.append_result(result)
+        content = SafeHTML.new(children.render)
       end
 
       output = +"<#{name}#{format_attributes(attributes)}>"
@@ -153,15 +146,13 @@ module Rendry
         helper = context && context.respond_to?(name) ? context.method(name) : nil
         has_arguments = !(content.nil? && attributes.empty? && !block)
         if helper && !(helper.arity == 0 && has_arguments)
-          result = if content.nil? && attributes.empty? && !block
+          if content.nil? && attributes.empty? && !block
             context.public_send(name)
           elsif content.nil?
             context.public_send(name, **attributes, &block)
           else
             context.public_send(name, content, **attributes, &block)
           end
-          write_escaped_result(result)
-          self
         else
           tag(name.to_s.tr("_", "-"), content, **attributes, &block)
         end
@@ -174,18 +165,19 @@ module Rendry
       name.to_s.match?(/\A[a-z][a-z0-9_]*\z/) || super
     end
 
-    private
-
-    def write(string)
-      @output << string if @enabled
-    end
-
-    def write_escaped_result(result)
+    def append_result(result)
       if result.is_a?(SafeHTML)
         write result
       elsif Rendry.appendable_result?(result)
         write CGI.escapeHTML(result.to_s)
       end
+      self
+    end
+
+    private
+
+    def write(string)
+      @output << string if @enabled
     end
 
     def refresh_wrapper(html, config)
@@ -255,11 +247,7 @@ module Rendry
 
       builder = Builder.new
       result = Rendry.evaluate(builder, self, context: view_context, &block)
-      if result.is_a?(SafeHTML)
-        builder.output << result
-      elsif Rendry.appendable_result?(result)
-        builder.output << CGI.escapeHTML(result.to_s)
-      end
+      builder.append_result(result)
       SafeHTML.new(builder.render)
     end
   end
@@ -467,14 +455,15 @@ module Rendry
       Thread.current[:rendry_current_fragments] = fragments.map(&:to_s)
       Thread.current[:rendry_root_builder] = builder
       begin
-        evaluate(builder, &block)
+        result = evaluate(builder, &block)
       ensure
         Thread.current[:rendry_current_fragments] = previous_fragments
         Thread.current[:rendry_root_builder] = previous_root
       end
     else
-      evaluate(builder, &block)
+      result = evaluate(builder, &block)
     end
+    builder.append_result(result)
     SafeHTML.new(builder.render)
   end
 
