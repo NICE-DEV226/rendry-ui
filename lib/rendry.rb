@@ -232,9 +232,10 @@ module Rendry
   # Built-in Standard UI Components Kit
   module Components
     class Layout < Component
-      def initialize(title: "Rendry", head: nil, **attributes, &block)
+      def initialize(title: "Rendry", head: nil, view_transitions: false, **attributes, &block)
         @title = title
         @head = head
+        @view_transitions = view_transitions
         @attributes = attributes
         @block = block
       end
@@ -246,6 +247,9 @@ module Rendry
               meta(charset: "utf-8")
               meta(name: "viewport", content: "width=device-width, initial-scale=1")
               title(@title)
+              if @view_transitions
+                style { raw "@view-transition { navigation: auto; }" }
+              end
               Rendry.evaluate(self, &@head) if @head
             end
             body do

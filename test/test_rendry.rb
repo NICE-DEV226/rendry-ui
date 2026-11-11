@@ -114,6 +114,24 @@ class RendryTest < Minitest::Test
     assert_includes html, '<p>content</p>'
   end
 
+  def test_layout_view_transitions_emits_style_rule
+    html = Rendry.render do
+      component Rendry::Components::Layout.new(title: "VT", view_transitions: true) do
+        p "x"
+      end
+    end
+
+    assert_includes html, "<style>@view-transition { navigation: auto; }</style>"
+  end
+
+  def test_layout_without_view_transitions_has_no_style_rule
+    html = Rendry.render do
+      component Rendry::Components::Layout.new(title: "NoVT") { p "x" }
+    end
+
+    refute_includes html, "@view-transition"
+  end
+
   def test_hx_helper_builds_htmx_attributes
     html = Rendry.render do
       button("Delete", **hx(delete: "/tasks/1", target: "closest .task", swap: "outerHTML"))

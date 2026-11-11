@@ -21,7 +21,7 @@ class SiteLayout < Rendry::Component
     nav_class = ->(name) { "nav-link#{" nav-active" if name == @current}" }
 
     Rendry.render do
-      component Rendry::Components::Layout.new(title: @title) do
+      component Rendry::Components::Layout.new(title: @title, view_transitions: true) do
         nav(class: "site-nav") do
           a("Accueil", href: "index.html", class: nav_class.call("index"))
           a("A propos", href: "apropos.html", class: nav_class.call("apropos"))
