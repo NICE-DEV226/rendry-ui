@@ -197,6 +197,38 @@ module Rendry
     end
   end
 
+  module Kit
+    def self.extended(base)
+      base.instance_variable_set(:@kit_components, {})
+    end
+
+    def component(klass, as: nil)
+      key = (as || klass.name.to_s.split("::").last).to_s.gsub(/([a-z\d])([A-Z])/, '\1_\2').downcase.to_sym
+      kit_components[key] = klass
+      klass
+    end
+
+    def [](name)
+      kit_components.fetch(name.to_sym) do
+        raise KeyError, "unknown component #{name.inspect} in #{self}"
+      end
+    end
+
+    def components
+      kit_components.dup
+    end
+
+    def render(name, *args, **kwargs, &block)
+      self[name].new(*args, **kwargs, &block).render
+    end
+
+    private
+
+    def kit_components
+      @kit_components ||= {}
+    end
+  end
+
   # Built-in Standard UI Components Kit
   module Components
     class Layout < Component
@@ -310,6 +342,13 @@ module Rendry
         end
       end
     end
+
+    extend Kit
+    component Layout
+    component Button
+    component Badge
+    component Card
+    component Alert
   end
 
   module_function

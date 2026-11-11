@@ -224,4 +224,27 @@ class RendryTest < Minitest::Test
     assert_includes html, 'hx-trigger="every 1s"'
     assert_includes html, 'hx-target="this"'
   end
+
+  def test_kit_registers_and_resolves_components
+    kit = Module.new do
+      extend Rendry::Kit
+
+      widget = Class.new(Rendry::Component) do
+        def render
+          Rendry.render { span "kit widget" }
+        end
+      end
+      component widget, as: :widget
+    end
+
+    assert_equal :widget, kit.components.keys.first
+    assert_instance_of kit[:widget], kit[:widget].new
+    assert_includes kit.render(:widget), "kit widget"
+    assert_raises(KeyError) { kit[:missing] }
+  end
+
+  def test_builtin_components_kit_resolves_by_name
+    assert_equal Rendry::Components::Button, Rendry::Components[:button]
+    assert_includes Rendry::Components.render(:badge, "Hi", variant: "info"), "Hi"
+  end
 end

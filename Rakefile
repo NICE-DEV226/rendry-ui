@@ -26,7 +26,7 @@ task default: [:test]
 
 desc "Smoke-run the static examples (servers excluded)"
 task :examples do
-  %w[01_static_page 02_component_gallery 03_layout_site].each do |dir|
+  %w[01_static_page 02_component_gallery 03_layout_site 07_component_kit].each do |dir|
     sh "ruby", "examples/#{dir}/app.rb", out: File::NULL
   end
 end
