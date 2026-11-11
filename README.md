@@ -135,3 +135,26 @@ The core targets four properties:
 - no mandatory frontend dependency.
 
 This is not a complete web framework yet. Routing, forms, state management, and layout rendering currently belong to the host application, such as Sinatra.
+
+## Contributing
+
+How about contributing to the project? I would be truly delighted to have contributors and people who are interested in the project.
+
+Rendry is deliberately small — contributions that keep it small are the most welcome:
+
+- **Bug reports and fixes** — the DSL has many edge cases (`method_missing` delegation, fragment filtering, context bridging); reproductions are gold.
+- **New built-in components** — `Rendry::Components` is a kit; adding a component is a few lines plus a CSS class in `assets/rendry.css`.
+- **Examples** — a new `examples/NN_name/` mini-project showing a real use case is the best documentation.
+- **Docs** — README sections, yard comments on public API.
+
+Please keep the zero-runtime-dependency spirit: `cgi`, `json`, and `set` are the only requires. No frontend build step, no required JS.
+
+```sh
+git clone https://github.com/NICE-DEV226/rendry-ui.git
+cd rendry-ui
+bundle install
+bundle exec rake          # run the test suite
+bundle exec rake examples # smoke-run the examples
+```
+
+Open an issue first for anything non-trivial so we can align on direction.
