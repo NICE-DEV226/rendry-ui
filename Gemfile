@@ -1,3 +1,5 @@
+source "https://rubygems.org"
+
 gem "rake"
 
 gem "rack", "~> 3.2"

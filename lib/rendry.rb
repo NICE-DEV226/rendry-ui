@@ -2,6 +2,7 @@
 
 require "cgi"
 require "json"
+require "set"
 require_relative "rendry/version"
 
 module Rendry
@@ -11,26 +12,29 @@ module Rendry
     end
   end
 
-  VOID_ELEMENTS = %w[area base br col embed hr img input link meta param source track wbr].freeze
-  BOOLEAN_ATTRIBUTES = %i[allowfullscreen async autofocus autoplay checked controls defer disabled formnovalidate hidden inert loop multiple muted nomodule novalidate open playsinline readonly required reversed selected].freeze
+  VOID_ELEMENTS = Set.new(%w[area base br col embed hr img input link meta param source track wbr]).freeze
+  BOOLEAN_ATTRIBUTES = Set.new(%i[allowfullscreen async autofocus autoplay checked controls defer disabled formnovalidate hidden inert loop multiple muted nomodule novalidate open playsinline readonly required reversed selected]).freeze
 
   class Cache
     def initialize(limit: 128)
       @store = {}
       @limit = limit
+      @mutex = Mutex.new
     end
 
     def fetch(key)
-      return @store[key] if @store.key?(key)
+      @mutex.synchronize do
+        return @store[key] if @store.key?(key)
 
-      value = yield
-      @store[key] = value
-      @store.shift while @store.size > @limit
-      value
+        value = yield
+        @store[key] = value
+        @store.shift while @store.size > @limit
+        value
+      end
     end
 
     def clear
-      @store.clear
+      @mutex.synchronize { @store.clear }
     end
   end
 
@@ -168,6 +172,15 @@ module Rendry
     def format_attributes(attributes)
       attributes.each_with_object(+"") do |(key, value), result|
         next if value.nil? || value == false
+
+        if (key == :data || key == :aria) && value.is_a?(Hash)
+          value.each do |nested_key, nested_value|
+            next if nested_value.nil? || nested_value == false
+
+            result << %( #{key}-#{nested_key.to_s.tr('_', '-')}="#{CGI.escapeHTML(nested_value.to_s)}")
+          end
+          next
+        end
 
         attribute = key.to_s.tr("_", "-")
         if BOOLEAN_ATTRIBUTES.include?(key.to_sym)
@@ -369,26 +382,26 @@ module Rendry
   end
 
   def current_fragments
-    @current_fragments
+    Thread.current[:rendry_current_fragments]
   end
 
   def root_builder
-    @root_builder
+    Thread.current[:rendry_root_builder]
   end
 
   def render(fragments: nil, &block)
-    filter = fragments || @current_fragments
+    filter = fragments || current_fragments
     builder = Builder.new(enabled: filter.nil?)
     if fragments
-      previous_fragments = @current_fragments
-      previous_root = @root_builder
-      @current_fragments = fragments.map(&:to_s)
-      @root_builder = builder
+      previous_fragments = current_fragments
+      previous_root = root_builder
+      Thread.current[:rendry_current_fragments] = fragments.map(&:to_s)
+      Thread.current[:rendry_root_builder] = builder
       begin
         evaluate(builder, &block)
       ensure
-        @current_fragments = previous_fragments
-        @root_builder = previous_root
+        Thread.current[:rendry_current_fragments] = previous_fragments
+        Thread.current[:rendry_root_builder] = previous_root
       end
     else
       evaluate(builder, &block)

@@ -265,4 +265,30 @@ class RendryTest < Minitest::Test
     assert_equal Rendry::Components::Button, Rendry::Components[:button]
     assert_includes Rendry::Components.render(:badge, "Hi", variant: "info"), "Hi"
   end
+
+  def test_data_and_aria_attributes_are_flattened
+    html = Rendry.render do
+      div(data: { controller: "tasks", toggle_url: "/x" }, aria: { label: "List" })
+    end
+
+    assert_includes html, 'data-controller="tasks"'
+    assert_includes html, 'data-toggle-url="/x"'
+    assert_includes html, 'aria-label="List"'
+  end
+
+  def test_fragment_state_is_thread_local
+    results = {}
+    threads = %w[alpha beta].map do |name|
+      Thread.new do
+        results[name] = Rendry.render(fragments: [name]) do
+          fragment("alpha") { text "AAA" }
+          fragment("beta") { text "BBB" }
+        end
+      end
+    end
+    threads.each(&:join)
+
+    assert_equal "AAA", results["alpha"]
+    assert_equal "BBB", results["beta"]
+  end
 end
